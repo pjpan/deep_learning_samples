@@ -17,6 +17,7 @@ from keras.applications import VGG16
 from keras.layers import Input
 from keras.models import Model
 from keras.optimizers import SGD
+from keras.callbacks import ModelCheckpoint
 from sklearn.metrics import classification_report
 from imutils import paths
 from utils import config
@@ -125,12 +126,14 @@ model.compile(loss="binary_crossentropy", optimizer=opt,
 
 # train the head of the network for a few epochs
 print("[INFO] training head ...")
+epoch = 1  # set epochs
+
 H = model.fit_generator(
     trainGen,
     steps_per_epoch=totalTrain//config.BATCH_SIZE,
     validation_data=valGen,
     validation_steps=totalVal//config.BATCH_SIZE,
-    epochs=5
+    epochs=epoch
 )
 
 # reset the testing generator and evaluate the network
@@ -144,7 +147,7 @@ print(classification_report(testGen.classes, predIdxs,
 
 
 # plot the traning history via plot_training
-plot_training(H, 5, config.WARMUP_PLOT_PATH)
+plot_training(H, epoch, config.WARMUP_PLOT_PATH)
 
 # let's process to unfreeze the finnal set of CONV layrs in the base model layers
 # reset our data generators
@@ -161,6 +164,7 @@ for layer in baseModel.layers:
     print("{}: {}".format(layer, layer.trainable))
 
 
+
 # for the changes to the model to take affect we need to recompile
 # the model, this time using SGB with a very small learning rate
 print("[INFO] re-compiling modle... ")
@@ -168,13 +172,25 @@ opt = SGD(lr=1e-4, momentum=0.9)
 model.compile(loss="binary_crossentropy", optimizer=opt,
               metrics=["accuracy"])
 
+# checkpoint
+checkpoint = ModelCheckpoint(filepath=config.MODEL_PATH, monitor='val_acc',
+                             verbose=1,
+                             save_best_only=True,
+                             mode='max'
+                             )
+callback_list=[checkpoint]
+
 # train the model again
 H = model.fit_generator(
     trainGen,
     steps_per_epoch=totalTrain // config.BATCH_SIZE,
     validation_data=valGen,
     validation_steps=totalVal // config.BATCH_SIZE,
-    epoch=5)
+    epochs=1,
+    use_multiprocessing=True,
+    callbacks=callback_list,
+    verbose=0
+)
 
 # reset the tesing generator and then use our trained model
 # make predictions on the data
@@ -185,7 +201,7 @@ predIdxs = model.predict_generator(testGen,
 predIdxs = np.argmax(predIdxs, axis=1)
 print(classification_report(testGen.classes, predIdxs,
                          target_names=testGen.class_indices.keys()))
-plot_training(H, 5, config.UNFROZEN_PLOT_PATH)
+plot_training(H, 1, config.UNFROZEN_PLOT_PATH)
 
 # serialize the model to disk
 print("[INFO] serializing network...")
