@@ -73,7 +73,7 @@ classTotals = labels.sum(axis=0)
 classWeight = classTotals.max() / classTotals
 
 # CONSTRUCT THE TRAING and testing split
-(trainX, testX, trainY, testY) = train_test_split(data , labels, test_size=config.TEST_SPLIT, random_state=42)
+(trainX, testX, trainY, testY) = train_test_split(data, labels, test_size=config.TEST_SPLIT, random_state=42)
 
 # initialize the training data augmentation object
 aug = ImageDataGenerator(rotation_range=30,
